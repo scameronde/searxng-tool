@@ -1,9 +1,9 @@
 {
   "name": "searxng-opencode-tool",
-  "version": "1.0.0",
-  "description": "OpenCode custom tool for searching the internet using SearXNG",
+  "version": "1.1.0",
+  "description": "OpenCode custom tool for searching the internet using SearXNG (supports OpenCode V1 and V2)",
   "type": "module",
-  "main": ".opencode/tool/searxng-search.ts",
+  "main": ".opencode/plugins/searxng-search.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -17,6 +17,7 @@
   "license": "MIT",
   "devDependencies": {
     "@opencode-ai/plugin": "latest",
+    "@opencode/plugin": "latest",
     "@types/node": "latest",
     "typescript": "latest",
     "zod": "latest"

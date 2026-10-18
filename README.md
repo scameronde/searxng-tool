@@ -2,6 +2,8 @@
 
 A custom OpenCode tool that enables AI agents to search the internet using the SearXNG service. This tool integrates with a SearXNG instance for privacy-focused, decentralized web search capabilities.
 
+Works with both **OpenCode V1** (1.18.29 or newer) and **OpenCode V2**. A single plugin file supports both versions: V1 loads it through the legacy `tool()` API, V2 through the new plugin API.
+
 ## Features
 
 - **Privacy-Focused Search**: Uses SearXNG, a metasearch engine that doesn't track users
@@ -13,20 +15,33 @@ A custom OpenCode tool that enables AI agents to search the internet using the S
 
 ## Installation
 
-This tool is designed to be used with OpenCode. Place the `.opencode/` directory in your OpenCode project root:
+This tool is designed to be used with OpenCode. Place the `.opencode/` directory in your OpenCode project root, then install the dependencies. OpenCode loads the plugin automatically from `.opencode/plugins/` at startup — no configuration is required.
+
+### OpenCode V2
+
+OpenCode V2 loads the plugin through the `Plugin.define` entrypoint (`.opencode/plugins/searxng-search.ts`). No additional steps are needed.
 
 ```bash
 # Copy this entire directory structure into your OpenCode project
-cp -r .opencode ~/.opencode/tool/
-# or if using a project-specific .opencode directory
 cp -r .opencode /path/to/your/opencode-project/.opencode/
-```
 
-Then install dependencies:
-
-```bash
+# Then install dependencies in your project root
 npm install
 ```
+
+### OpenCode V1
+
+OpenCode V1 (1.18.29 or newer) loads the same file through the legacy `server()` entrypoint and registers the tool with the `tool()` helper from `@opencode-ai/plugin`.
+
+```bash
+# Copy this entire directory structure into your OpenCode project
+cp -r .opencode /path/to/your/opencode-project/.opencode/
+
+# Then install dependencies in your project root
+npm install
+```
+
+> **Note:** V1 support requires OpenCode 1.18.29 or newer, which added object plugin entrypoints. The tool requires both `@opencode-ai/plugin` (V1) and `@opencode/plugin` (V2) from `package.json`, so a single installation works for either version of OpenCode.
 
 ## Usage
 
@@ -94,11 +109,21 @@ The tool is configured to connect to the SearXNG instance at:
 http://searxng.vier.services
 ```
 
-To use a different SearXNG instance, modify the `searxngUrl` in `.opencode/tool/searxng-search.ts`:
+To use a different SearXNG instance, modify the `searxngUrl` constant in `.opencode/plugins/searxng-search.ts`:
 
 ```typescript
 const searxngUrl = "http://your-searxng-instance.com/search"
 ```
+
+### Private Instances Behind Basic Auth
+
+Many self-hosted SearXNG instances are protected with basic auth. Embed the credentials in the URL using the standard `user:password@` syntax:
+
+```typescript
+const searxngUrl = "https://user:password@your-private-instance.com/search"
+```
+
+The tool extracts the credentials and sends them as an `Authorization: Basic ...` header. This is required because WHATWG `fetch` (used by OpenCode's runtime) silently ignores URL-embedded credentials. Instances without credentials work unchanged.
 
 ## Search Tips
 
@@ -227,14 +252,11 @@ searxng-search(query="cybersecurity education", safesearch=2)
 
 ## Architecture
 
-The tool is built as a TypeScript module that:
-1. Accepts search parameters from OpenCode agents
-2. Constructs a URL with query parameters for the SearXNG API
-3. Makes an HTTP GET request to the SearXNG service
-4. Parses the JSON response
-5. Limits results to 10 entries
-6. Formats results for both LLM processing and human reading
-7. Returns structured JSON with error handling
+The tool is built as a TypeScript plugin module that supports both OpenCode versions from one file:
+
+- **V2 entrypoint** (`Plugin.define` + `setup`): registers the `searxng-search` tool through the V2 plugin API, using a JSON Schema input definition.
+- **V1 entrypoint** (`server`): registers the same tool with the legacy `tool()` helper and Zod argument schema.
+- **Shared implementation** (`searchSearXNG`): both entrypoints call the same search function, which accepts search parameters, constructs the SearXNG API URL, makes an HTTP GET request, parses the JSON response, limits results to 10 entries, formats them for both LLM processing and human reading, and returns structured JSON with error handling.
 
 ## Performance
 
@@ -259,8 +281,8 @@ This makes it ideal for AI agents that need to search the internet without creat
 ```
 searxng-tool/
 ├── .opencode/
-│   └── tool/
-│       └── searxng-search.ts       # Main tool implementation
+│   └── plugins/
+│       └── searxng-search.ts       # Plugin (V1 + V2 entrypoints, shared search logic)
 ├── package.json                    # Dependencies
 ├── tsconfig.json                   # TypeScript config
 └── README.md                       # This file
@@ -276,11 +298,11 @@ tsc
 
 To customize the tool:
 
-1. Edit `.opencode/tool/searxng-search.ts`
+1. Edit `.opencode/plugins/searxng-search.ts`
 2. Update the `searxngUrl` constant for different instances
-3. Modify the `execute` function to change behavior
-4. Adjust the `results` limit (currently set to 10)
-5. Update result formatting in the mapping function
+3. Modify the shared `searchSearXNG` function to change behavior
+4. Adjust the result limit (currently set to 10) inside `searchSearXNG`
+5. Update the argument schema in both the V2 `input` JSON Schema and the V1 `args` Zod schema when changing parameters
 
 ## License
 
@@ -304,6 +326,8 @@ For issues or questions:
 
 ## Related Resources
 
-- [OpenCode Custom Tools Documentation](https://opencode.ai/docs/custom-tools/)
+- [OpenCode V1 Custom Tools Documentation](https://opencode.ai/docs/custom-tools/)
+- [OpenCode V2 Plugins Documentation](https://opencode.ai/v2/docs/build/plugins)
+- [OpenCode V1 to V2 Migration Guide](https://opencode.ai/v2/docs/migrate-v1)
 - [SearXNG Documentation](https://docs.searxng.org/)
 - [SearXNG Public Instances](https://searx.space/)
